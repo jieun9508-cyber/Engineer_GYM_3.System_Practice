@@ -11,11 +11,11 @@ USE Engineer_GYM;
 
 -- 시나리오(문제)
 CREATE TABLE IF NOT EXISTS system_scenarios (
-  id VARCHAR(64) PRIMARY KEY,
-  track VARCHAR(32) NOT NULL,
+  id VARCHAR(64) PRIMARY KEY,   --시나리오 고유 ID
+  track VARCHAR(32) NOT NULL,   --트랙 구분 ex. system_practice, coding_practice 등
   title VARCHAR(255) NOT NULL,
   difficulty VARCHAR(16) NOT NULL,
-  tags JSON NOT NULL,
+  tags JSON NOT NULL,              --태그 목록(JSON 배열) ex. ["RAG","On-Prem","ACL"]
   version VARCHAR(16) NOT NULL,
 
   context_json JSON NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS system_scenarios (
   traffic_json JSON NOT NULL,
   submission_format_json JSON NOT NULL,
   checklist_template_json JSON NOT NULL,
-  admin_notes_json JSON NULL,
+  admin_notes_json JSON NULL,   --관리자용 메모 (최소 구성 요소(채점 기준) 등)
 
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
