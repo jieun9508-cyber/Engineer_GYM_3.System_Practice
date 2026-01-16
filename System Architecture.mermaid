@@ -1,111 +1,118 @@
 flowchart TB
-    subgraph "Client Layer"
-        UI["Web/Mobile UI"]
-        CodeEditor["Code Editor"]
-        DiagramEditor["Diagram Editor\n(Mermaid)"]
-    end
 
-    subgraph "API Gateway & Auth"
-        Gateway["API Gateway"]
-        RateLimit["Rate Limiter"]
-        Auth["Auth Service\n(JWT)"]
-    end
+subgraph CL["Client Layer"]
+  Home["Practice Home\n(5 icons)"]
+  CodeUI["Code Practice UI\nStep 1-5 (linear)"]
+  DebugUI["Debug Practice UI\nStep 1-5 (linear)"]
+  SystemUI["System Practice UI\nStep 1-5 (linear)"]
+  OpsUI["Ops Practice UI\nStep 1-5 (linear)"]
+  AgentUI["Agent Practice UI\nStep 1-5 (linear)"]
 
-    subgraph "Content Management"
-        ScenarioDB[(Scenario DB)]
-        ConstraintsDB[(Constraints DB)]
-        TestCaseDB[(Test Cases)]
-        TemplateDB[(Solution Templates)]
-    end
+  Home --> CodeUI
+  Home --> DebugUI
+  Home --> SystemUI
+  Home --> OpsUI
+  Home --> AgentUI
+end
 
-    subgraph "Core Practice Services"
-        Router["Practice Router\n(Thin Dispatcher + Step Gate)"]
+subgraph GW["API Gateway & Auth"]
+  Gateway["API Gateway"]
+  RateLimit["Rate Limiter"]
+  Auth["Auth Service\n(JWT)"]
+end
 
-        subgraph "Code Practice"
-            CodeHandler["Code Submission"]
-            Sandbox["Sandbox Runner"]
-            CodeCheck["Code Check\n(Run Tests)"]
-        end
+subgraph CONTENT["Content Management"]
+  ScenarioDB[(Scenario DB)]
+  ConstraintsDB[(Constraints DB)]
+  TestCaseDB[(Test Cases)]
+  TemplateDB[(Solution Templates)]
+end
 
-        subgraph "Debug Practice"
-            DebugHandler["Debug Submission"]
-            DebugCheck["Debug Check\n(Diff/Explain)"]
-        end
+subgraph PRACTICE["Practice Services (no Router)"]
+  CodeSvc["Code Practice Service\n(step task, submit, result)"]
+  DebugSvc["Debug Practice Service\n(step task, submit, result)"]
+  SystemSvc["System Practice Service\n(step task, submit, result)"]
+  OpsSvc["Ops Practice Service\n(step task, submit, result)"]
+  AgentSvc["Agent Practice Service\n(step task, submit, result)"]
+end
 
-        subgraph "System Practice"
-            SystemHandler["System Design Submission"]
-            SystemCheck["System Check\n(Checklist)"]
-        end
+subgraph EVAL["Evaluation Engine (Unified)"]
+  TestManager["Test / Rule Manager"]
+  ObjectiveFB["Objective Feedback\n(pass/fail, score, reasons)"]
+end
 
-        subgraph "Ops Practice"
-            OpsHandler["Incident Submission"]
-            OpsCheck["Ops Check\n(Checklist)"]
-        end
+subgraph LLM["AI/LLM (Independent per Practice-Step)"]
+  FeedbackGen["LLM Feedback Generator\n(hint/coach only)"]
+end
 
-        subgraph "Agent Practice"
-            AgentHandler["Agent Submission"]
-            AgentCheck["Agent Check\n(Checklist)"]
-        end
-    end
+subgraph PROG["User Progress (Linear Gate)"]
+  ProgressTracker["Progress Tracker\n(current_step 1-5)"]
+  UserHistory[(User Data & History)]
+  NextStep["Next Step\n(rule-based)"]
+end
 
-    subgraph "Evaluation Engine (Unified)"
-        TestManager["Test Case / Rule Manager"]
-        ObjectiveFB["Objective Feedback\n(pass/fail, score, reasons)"]
-    end
+subgraph INFRA["Infrastructure (MVP)"]
+  Storage["Object Storage (optional)"]
+  Monitoring["Monitoring & Logging (minimal)"]
+end
 
-    subgraph "AI/LLM Layer (MVP)"
-        LLMFeedback["Feedback Generator (LLM)\n- Hint/Coach\n- Best Practice Summary\n- Next Step Tip"]
-    end
+%% Client to Gateway
+CodeUI --> Gateway
+DebugUI --> Gateway
+SystemUI --> Gateway
+OpsUI --> Gateway
+AgentUI --> Gateway
 
-    subgraph "User Progress"
-        ProgressTracker["Progress Tracker\n(current_step 1-5)"]
-        UserHistory[(User Data & History)]
-        Recommender["Next Step\n(Rule-based)"]
-    end
+Gateway --> RateLimit --> Auth
 
-    subgraph "Infrastructure (MVP)"
-        Storage["Object Storage (optional)"]
-        Cache["Cache (optional)"]
-        Monitoring["Monitoring & Logging (minimal)"]
-    end
+%% Gateway routes directly to each practice service (no Practice Router)
+Auth --> CodeSvc
+Auth --> DebugSvc
+Auth --> SystemSvc
+Auth --> OpsSvc
+Auth --> AgentSvc
 
-    UI --> Gateway
-    CodeEditor --> Gateway
-    DiagramEditor --> Gateway
+%% Content connections (each practice pulls its step task)
+ScenarioDB --> CodeSvc
+ConstraintsDB --> CodeSvc
+ScenarioDB --> DebugSvc
+ConstraintsDB --> DebugSvc
+ScenarioDB --> SystemSvc
+ConstraintsDB --> SystemSvc
+ScenarioDB --> OpsSvc
+ConstraintsDB --> OpsSvc
+ScenarioDB --> AgentSvc
+ConstraintsDB --> AgentSvc
 
-    Gateway --> RateLimit --> Auth --> Router
+TestCaseDB --> TestManager
+TemplateDB --> TestManager
 
-    Router --> CodeHandler
-    Router --> DebugHandler
-    Router --> SystemHandler
-    Router --> OpsHandler
-    Router --> AgentHandler
+%% Each practice submits to the same evaluation engine (but independently)
+CodeSvc --> TestManager
+DebugSvc --> TestManager
+SystemSvc --> TestManager
+OpsSvc --> TestManager
+AgentSvc --> TestManager
 
-    CodeHandler --> Sandbox --> CodeCheck
-    DebugHandler --> DebugCheck
-    SystemHandler --> SystemCheck
-    OpsHandler --> OpsCheck
-    AgentHandler --> AgentCheck
+TestManager --> ObjectiveFB
 
-    ScenarioDB --> Router
-    ConstraintsDB --> Router
-    TestCaseDB --> TestManager
-    TemplateDB --> TestManager
+%% Independent LLM feedback (based on objective result)
+ObjectiveFB --> FeedbackGen
 
-    CodeCheck --> TestManager
-    DebugCheck --> TestManager
-    SystemCheck --> TestManager
-    OpsCheck --> TestManager
-    AgentCheck --> TestManager
+%% Progress update and linear gate
+FeedbackGen --> ProgressTracker
+ProgressTracker --> UserHistory
+UserHistory --> NextStep
+NextStep --> Home
 
-    TestManager --> ObjectiveFB
-    ObjectiveFB --> LLMFeedback
-
-    LLMFeedback --> ProgressTracker
-    ProgressTracker --> UserHistory
-    UserHistory --> Recommender
-    Recommender --> UI
-
-    Monitoring -.-> Router
-    Storage -.-> Router
-    Cache -.-> Router
+%% optional infra
+Monitoring -.-> CodeSvc
+Monitoring -.-> DebugSvc
+Monitoring -.-> SystemSvc
+Monitoring -.-> OpsSvc
+Monitoring -.-> AgentSvc
+Storage -.-> CodeSvc
+Storage -.-> DebugSvc
+Storage -.-> SystemSvc
+Storage -.-> OpsSvc
+Storage -.-> AgentSvc
