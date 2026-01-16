@@ -1,7 +1,7 @@
 flowchart TB
 
 subgraph CL[Client Layer]
-  CodeUI["Code Practice UI\n- Task 보기\n- 제출(Submit)\n- Job 상태 확인\n- 결과/피드백 조회"]
+  CodeUI["Code Practice UI\n- Task 보기\n - 제출(Submit)\n - Job 상태 확인\n - 결과/피드백 조회"]
 end
 
 subgraph IAM[API Gateway and Identity]
@@ -13,8 +13,8 @@ subgraph IAM[API Gateway and Identity]
 end
 
 subgraph API[Practice API - Code Practice]
-  CodeAPI["Code Practice API\n- get task\n- submit -> job_id\n- get status/result"]
-  Idem["Idempotency Key\n(중복 제출 방지)"]
+  CodeAPI["Code Practice API\n - get task\n - submit -> job_id\n - get status/result"]
+  Idem["Idempotency Key\n (중복 제출 방지)"]
   CodeAPI --> Idem
 end
 
@@ -33,32 +33,32 @@ subgraph JOB[Async Job System]
 end
 
 subgraph WORKERS[Worker Pool]
-  Runner["Runner Worker\n(pull job)"]
+  Runner["Runner Worker\n (pull job)"]
   ExecOrch[Execution Orchestrator]
   Runner --> ExecOrch
 end
 
 subgraph EXEC[Secure Execution Boundary]
-  Sandbox["Sandbox Runtime\n- isolation\n- no egress network\n- CPU/Mem/Time limits\n- read-only FS + workspace"]
-  Tests["Test Runner\n(unit, integration)"]
+  Sandbox["Sandbox Runtime\n - isolation\n - no egress network\n - CPU/Mem/Time limits\n - read-only FS + workspace"]
+  Tests["Test Runner\n (unit, integration)"]
   Sandbox --> Tests
 end
 
 subgraph EVAL[Evaluation and Feedback]
-  Objective["Objective Scoring\n(pass/fail, score, reasons)"]
-  Feedback["LLM Coach Feedback\n(grounded on objective + logs)"]
+  Objective["Objective Scoring\n (pass/fail, score, reasons)"]
+  Feedback["LLM Coach Feedback\n (grounded on objective + logs)"]
   Objective --> Feedback
 end
 
 subgraph DATA[Data Stores]
-  ArtifactStore["Object Storage\n(code, logs, artifacts)"]
+  ArtifactStore["Object Storage\n (code, logs, artifacts)"]
   ResultDB["(Result DB)"]
-  ProgressDB["(Progress DB)\nFSM + version field"]
+  ProgressDB["(Progress DB)\n FSM + version field"]
   Audit["(Audit Log)"]
 end
 
 subgraph REC[Recommendation]
-  Next["Next Step Service\n(rule-based + heuristics)"]
+  Next["Next Step Service\n (rule-based + heuristics)"]
 end
 
 subgraph OBS[Observability - Required]
