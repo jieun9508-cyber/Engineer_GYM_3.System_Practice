@@ -2,117 +2,42 @@ flowchart TB
 
 subgraph CL["Client Layer"]
   Home["Practice Home\n(5 icons)"]
-  CodeUI["Code Practice UI\nStep 1-5 (linear)"]
-  DebugUI["Debug Practice UI\nStep 1-5 (linear)"]
-  SystemUI["System Practice UI\nStep 1-5 (linear)"]
-  OpsUI["Ops Practice UI\nStep 1-5 (linear)"]
-  AgentUI["Agent Practice UI\nStep 1-5 (linear)"]
-
-  Home --> CodeUI
-  Home --> DebugUI
-  Home --> SystemUI
-  Home --> OpsUI
-  Home --> AgentUI
+  PUI["Practice UI\n(Code/Debug/System/Ops/Agent)\nStep 1-5 (linear)"]
+  Home --> PUI
 end
 
 subgraph GW["API Gateway & Auth"]
   Gateway["API Gateway"]
-  RateLimit["Rate Limiter"]
-  Auth["Auth Service\n(JWT)"]
+  Auth["Auth Service (JWT)"]
+  Gateway --> Auth
 end
 
-subgraph CONTENT["Content Management"]
-  ScenarioDB[(Scenario DB)]
-  ConstraintsDB[(Constraints DB)]
-  TestCaseDB[(Test Cases)]
-  TemplateDB[(Solution Templates)]
+subgraph CORE["Practice Services (x5)"]
+  PracticeSvc["Practice Services\n- Code\n- Debug\n- System\n- Ops\n- Agent\n(each: task, submit, result)"]
 end
 
-subgraph PRACTICE["Practice Services (no Router)"]
-  CodeSvc["Code Practice Service\n(step task, submit, result)"]
-  DebugSvc["Debug Practice Service\n(step task, submit, result)"]
-  SystemSvc["System Practice Service\n(step task, submit, result)"]
-  OpsSvc["Ops Practice Service\n(step task, submit, result)"]
-  AgentSvc["Agent Practice Service\n(step task, submit, result)"]
+subgraph EVAL["Evaluation & Feedback"]
+  EvalEngine["Evaluation Engine (Unified)\nTest/Rule Manager -> Objective Result"]
+  LLM["LLM Feedback Generator\n(hint/coach only)"]
+  EvalEngine --> LLM
 end
 
-subgraph EVAL["Evaluation Engine (Unified)"]
-  TestManager["Test / Rule Manager"]
-  ObjectiveFB["Objective Feedback\n(pass/fail, score, reasons)"]
+subgraph DATA["Content & Progress"]
+  Content["Content Store\nScenario / Constraints / Testcases / Templates"]
+  Progress["Progress Store\ncurrent_step 1-5, history"]
 end
 
-subgraph LLM["AI/LLM (Independent per Practice-Step)"]
-  FeedbackGen["LLM Feedback Generator\n(hint/coach only)"]
+subgraph INFRA["Infra (optional)"]
+  Obs["Monitoring/Logging"]
+  Obj["Object Storage"]
 end
 
-subgraph PROG["User Progress (Linear Gate)"]
-  ProgressTracker["Progress Tracker\n(current_step 1-5)"]
-  UserHistory[(User Data & History)]
-  NextStep["Next Step\n(rule-based)"]
-end
+%% main runtime flow
+PUI --> Gateway --> PracticeSvc --> EvalEngine --> Progress --> Home
 
-subgraph INFRA["Infrastructure (MVP)"]
-  Storage["Object Storage (optional)"]
-  Monitoring["Monitoring & Logging (minimal)"]
-end
+%% data dependencies (single lines only)
+Content --> PracticeSvc
 
-%% Client to Gateway
-CodeUI --> Gateway
-DebugUI --> Gateway
-SystemUI --> Gateway
-OpsUI --> Gateway
-AgentUI --> Gateway
-
-Gateway --> RateLimit --> Auth
-
-%% Gateway routes directly to each practice service (no Practice Router)
-Auth --> CodeSvc
-Auth --> DebugSvc
-Auth --> SystemSvc
-Auth --> OpsSvc
-Auth --> AgentSvc
-
-%% Content connections (each practice pulls its step task)
-ScenarioDB --> CodeSvc
-ConstraintsDB --> CodeSvc
-ScenarioDB --> DebugSvc
-ConstraintsDB --> DebugSvc
-ScenarioDB --> SystemSvc
-ConstraintsDB --> SystemSvc
-ScenarioDB --> OpsSvc
-ConstraintsDB --> OpsSvc
-ScenarioDB --> AgentSvc
-ConstraintsDB --> AgentSvc
-
-TestCaseDB --> TestManager
-TemplateDB --> TestManager
-
-%% Each practice submits to the same evaluation engine (but independently)
-CodeSvc --> TestManager
-DebugSvc --> TestManager
-SystemSvc --> TestManager
-OpsSvc --> TestManager
-AgentSvc --> TestManager
-
-TestManager --> ObjectiveFB
-
-%% Independent LLM feedback (based on objective result)
-ObjectiveFB --> FeedbackGen
-
-%% Progress update and linear gate
-FeedbackGen --> ProgressTracker
-ProgressTracker --> UserHistory
-UserHistory --> NextStep
-NextStep --> Home
-
-%% optional infra
-Monitoring -.-> CodeSvc
-Monitoring -.-> DebugSvc
-Monitoring -.-> SystemSvc
-Monitoring -.-> OpsSvc
-Monitoring -.-> AgentSvc
-Storage -.-> CodeSvc
-Storage -.-> DebugSvc
-Storage -.-> SystemSvc
-Storage -.-> OpsSvc
-Storage -.-> AgentSvc
+%% optional infra (single dotted lines only)
+Obs -.-> PracticeSvc
+Obj -.-> PracticeSvc
