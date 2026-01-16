@@ -1,7 +1,7 @@
 flowchart TB
 
 subgraph CL["Client Layer"]
-  CodeUI["Code Practice UI\nStep 1-5 (linear)"]
+  CodeUI["Code Practice UI\n Step 1-5 (linear)"]
 end
 
 subgraph GW["API Gateway & Auth"]
@@ -13,7 +13,7 @@ end
 
 subgraph CODE["Code Practice Service"]
   CodeSvc["Code Service\n- get task\n- submit\n- result"]
-  StepGate["Step Gate\n(check current_step)"]
+  StepGate["Step Gate\n (check current_step)"]
   CodeSvc --> StepGate
 end
 
@@ -30,7 +30,7 @@ subgraph EXEC["Execution"]
 end
 
 subgraph EVAL["Evaluation & Feedback"]
-  ObjectiveFB["Objective Result\npass/fail, score, reasons"]
+  ObjectiveFB["Objective Result\n pass/fail, score, reasons"]
   LLM["LLM Feedback\n(hint/coach only)"]
   ObjectiveFB --> LLM
 end
@@ -39,11 +39,11 @@ subgraph DATA["Result & Progress"]
   ResultDB[(Result DB)]
   ProgressDB[(Progress DB)]
   UserHistory[(User History)]
-  Next["Next Step\n(rule-based)"]
+  Next["Next Step\n (rule-based)"]
 end
 
 subgraph INFRA["Infra (optional)"]
-  Obj["Object Storage\n(code/logs/artifacts)"]
+  Obj["Object Storage\n (code/logs/artifacts)"]
   Obs["Monitoring/Logging"]
 end
 
