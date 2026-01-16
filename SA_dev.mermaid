@@ -8,7 +8,7 @@ subgraph IAM[API Gateway and Identity]
   Gateway[API Gateway]
   Rate[Rate Limiter]
   Auth["Auth (JWT, OAuth)"]
-  RBAC["RBAC/Scopes\n(user/admin/author)"]
+  RBAC["RBAC/Scopes\n (user/admin/author)"]
   Gateway --> Rate --> Auth --> RBAC
 end
 
@@ -19,9 +19,9 @@ subgraph API[Practice API - Code Practice]
 end
 
 subgraph CONTENT[Content Service - Versioned]
-  ContentAPI["Content API\n(scenario, constraints, templates)"]
+  ContentAPI["Content API\n (scenario, constraints, templates)"]
   ContentDB["(Content DB)\nversioned"]
-  TestVault["(TestCase Vault)\nencrypted + access control"]
+  TestVault["(TestCase Vault)\n encrypted + access control"]
   ContentAPI --> ContentDB
   ContentAPI --> TestVault
 end
