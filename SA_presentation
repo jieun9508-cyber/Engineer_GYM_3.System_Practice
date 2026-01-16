@@ -1,0 +1,44 @@
+flowchart TB
+
+subgraph CL[Client Layer]
+  Home["Practice Home\n(5 icons)"]
+  PUI["Practice UI\n(Code/Debug/System/Ops/Agent)\nStep 1-5 (linear)"]
+  Home --> PUI
+end
+
+subgraph GW["API Gateway & Auth"]
+  Gateway["API Gateway"]
+  Rate["Rate Limiter"]
+  Auth["Auth (JWT)"]
+  Gateway --> Rate --> Auth
+end
+
+subgraph PS["Practice Services (x5)\n(no Practice Router)"]
+  PracticeSvc["Practice Service\n(task, submit, result)\nper practice"]
+end
+
+subgraph EVAL["Evaluation & Feedback"]
+  EvalEngine["Evaluation Engine\n(Test/Rule -> Objective Result)"]
+  LLM["LLM Feedback\n(hint/coach only)"]
+  EvalEngine --> LLM
+end
+
+subgraph DATA["Content & Progress"]
+  Content["Content Store\nScenario/Constraints\nTestcases/Templates"]
+  Progress["Progress Store\ncurrent_step 1-5\nhistory"]
+  Next["Next Step\n(rule-based)"]
+  Progress --> Next --> Home
+end
+
+subgraph INFRA["Infra (optional)"]
+  Obs["Monitoring/Logging"]
+  Obj["Object Storage\n(artifacts/logs)"]
+end
+
+PUI --> Gateway --> PracticeSvc --> EvalEngine --> Progress
+Content --> PracticeSvc
+Content --> EvalEngine
+
+Obs -.-> PracticeSvc
+Obs -.-> EvalEngine
+Obj -.-> PracticeSvc
