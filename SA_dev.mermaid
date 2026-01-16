@@ -1,0 +1,66 @@
+flowchart TB
+
+subgraph CL[Client Layer]
+  CodeUI["Code Practice UI\nStep 1-5 (linear)"]
+end
+
+subgraph GW["API Gateway & Auth"]
+  Gateway["API Gateway"]
+  Rate["Rate Limiter"]
+  Auth["Auth (JWT)"]
+  Gateway --> Rate --> Auth
+end
+
+subgraph CODE["Code Practice Service"]
+  CodeSvc["Code Service\n- get task\n- submit\n- result"]
+  StepGate["Step Gate\n(check current_step)"]
+  CodeSvc --> StepGate
+end
+
+subgraph CONTENT["Content"]
+  ScenarioDB[(Scenario DB)]
+  ConstraintsDB[(Constraints DB)]
+  TestCaseDB[(Test Cases)]
+  TemplateDB[(Templates)]
+end
+
+subgraph EXEC["Execution"]
+  Sandbox["Sandbox Runner"]
+  TestRun["Run Tests"]
+end
+
+subgraph EVAL["Evaluation & Feedback"]
+  ObjectiveFB["Objective Result\npass/fail, score, reasons"]
+  LLM["LLM Feedback\n(hint/coach only)"]
+  ObjectiveFB --> LLM
+end
+
+subgraph DATA["Result & Progress"]
+  ResultDB[(Result DB)]
+  ProgressDB[(Progress DB)]
+  UserHistory[(User History)]
+  Next["Next Step\n(rule-based)"]
+end
+
+subgraph INFRA["Infra (optional)"]
+  Obj["Object Storage\n(code/logs/artifacts)"]
+  Obs["Monitoring/Logging"]
+end
+
+CodeUI --> Gateway --> CodeSvc
+
+ScenarioDB --> CodeSvc
+ConstraintsDB --> CodeSvc
+
+CodeSvc --> Sandbox --> TestRun
+TestCaseDB --> TestRun
+TemplateDB --> TestRun
+
+TestRun --> ObjectiveFB --> ResultDB
+LLM --> ResultDB
+
+CodeSvc --> ProgressDB --> UserHistory --> Next --> CodeUI
+
+Sandbox --> Obj
+Obs -.-> CodeSvc
+Obs -.-> Sandbox
