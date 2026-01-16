@@ -1,0 +1,154 @@
+graph TB
+
+%% =========================
+%% Client
+%% =========================
+subgraph CL["Client Layer"]
+  Home["Practice Home (5 icons)"]
+  CodeUI["Code Practice UI (Step 1→5)"]
+  DebugUI["Debug Practice UI (Step 1→5)"]
+  SystemUI["System Practice UI (Step 1→5)"]
+  OpsUI["Ops Practice UI (Step 1→5)"]
+  AgentUI["Agent Practice UI (Step 1→5)"]
+
+  Home --> CodeUI
+  Home --> DebugUI
+  Home --> SystemUI
+  Home --> OpsUI
+  Home --> AgentUI
+end
+
+%% =========================
+%% Gateway & Auth
+%% =========================
+subgraph GW["API Gateway & Auth"]
+  Gateway["API Gateway"]
+  RateLimit["Rate Limiter"]
+  Auth["Auth Service (JWT)"]
+end
+
+%% =========================
+%% Core MVP Backend
+%% =========================
+subgraph CORE["Core MVP Services"]
+  PracticeAPI["Practice API (thin dispatcher)\n- get task\n- submit\n- status/result"]
+  Registry["Practice Registry (type/step → evaluator config)"]
+  ProgressSvc["Progress Service (Step Gate)\n- unlock rule\n- attempt tracking"]
+  Reco["Rule-based Recommender\n(next step/task)"]
+end
+
+%% =========================
+%% Content (MVP: Git/DB)
+%% =========================
+subgraph CONTENT["Content Store (MVP)"]
+  ContentRepo["Problem Repo (Git) / Content DB\nScenario + Constraints + Testcases + Rubric Templates"]
+end
+
+%% =========================
+%% Async Execution Plane (MVP 핵심)
+%% =========================
+subgraph ASYNC["Async Job Plane"]
+  SubmitQ["Job Queue"]
+  EvalWorker["Evaluation Worker(s)"]
+  FeedbackQ["Feedback Queue (optional)"]
+  LLMWorker["LLM Feedback Worker(s)\n(hints/coach only)"]
+end
+
+%% =========================
+%% Evaluators / Sandbox
+%% =========================
+subgraph EXEC["Evaluators & Sandbox"]
+  Sandbox["Sandbox Runner (Docker)\n- no egress\n- cpu/mem limit\n- timeout"]
+  CodeEval["Code Evaluator\n(test + perf + lint)"]
+  DebugEval["Debug Evaluator\n(diff + failing tests)"]
+  SystemEval["System Evaluator\n(rubric + checklists)"]
+  OpsEval["Ops Evaluator\n(log/metric ruleset)"]
+  AgentEval["Agent Evaluator\n(prompt/rag checks)"]
+end
+
+%% =========================
+%% Data Stores
+%% =========================
+subgraph DATA["Data & Infra"]
+  ResultDB["Result DB (job 결과/점수/요약)"]
+  ProgressDB["Progress DB (user × practice × step)"]
+  ObjStore["Object Storage (artifacts/logs)"]
+  Cache["Cache (Redis)"]
+  Obs["Monitoring/Logging/Tracing"]
+end
+
+%% =========================
+%% Client → Gateway
+%% =========================
+CodeUI --> Gateway
+DebugUI --> Gateway
+SystemUI --> Gateway
+OpsUI --> Gateway
+AgentUI --> Gateway
+
+Gateway --> RateLimit --> Auth --> PracticeAPI
+
+%% =========================
+%% Thin dispatch + Step gate
+%% =========================
+PracticeAPI --> Registry
+PracticeAPI --> ProgressSvc
+ProgressSvc --> ProgressDB
+Reco --> PracticeAPI
+
+%% =========================
+%% Content fetch
+%% =========================
+ContentRepo --> PracticeAPI
+ContentRepo --> EvalWorker
+
+%% =========================
+%% Submit → Queue → Worker
+%% =========================
+PracticeAPI --> SubmitQ
+SubmitQ --> EvalWorker
+
+%% =========================
+%% Worker execution paths (practice별 독립 평가)
+%% =========================
+EvalWorker --> Sandbox
+Sandbox --> CodeEval --> ResultDB
+Sandbox --> DebugEval --> ResultDB
+EvalWorker --> SystemEval --> ResultDB
+EvalWorker --> OpsEval --> ResultDB
+EvalWorker --> AgentEval --> ResultDB
+
+%% artifacts/logs
+EvalWorker --> ObjStore
+Sandbox --> ObjStore
+
+%% progress update & next recommendation
+EvalWorker --> ProgressSvc
+ProgressSvc --> Reco
+
+%% =========================
+%% LLM: objective 결과 기반 "설명/힌트"만 (optional)
+%% =========================
+EvalWorker --> FeedbackQ
+FeedbackQ --> LLMWorker
+ResultDB --> LLMWorker
+LLMWorker --> ResultDB
+
+%% =========================
+%% UI polling for job status/result
+%% =========================
+PracticeAPI --> ResultDB
+PracticeAPI --> Cache
+
+%% observability
+PracticeAPI --> Obs
+EvalWorker --> Obs
+Sandbox --> Obs
+
+%% styling (optional)
+style Home fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+style PracticeAPI fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+style SubmitQ fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+style EvalWorker fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+style LLMWorker fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+style Sandbox fill:#fce4ec,stroke:#ad1457,stroke-width:2px
