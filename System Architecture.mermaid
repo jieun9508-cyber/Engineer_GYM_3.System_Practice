@@ -1,154 +1,117 @@
 graph TB
+    subgraph "Client Layer"
+        UI[Web/Mobile UI]
+        CodeEditor[Code Editor]
+        DiagramEditor[Diagram Editor<br/>Mermaid]
+    end
+    
+    subgraph "API Gateway & Auth"
+        Gateway[API Gateway]
+        RateLimit[Rate Limiter]
+        Auth[Auth Service<br/>JWT]
+    end
+    
+    subgraph "Content Management"
+        ScenarioDB[(Scenario DB)]
+        ConstraintsDB[(Constraints DB)]
+        TestCaseDB[(Test Cases)]
+        TemplateDB[(Solution Templates)]
+    end
+    
+    subgraph "Core Practice Services"
+        Router[Practice Router<br/>(Thin Dispatcher + Step Gate)]
+        
+        subgraph "Code Practice"
+            CodeHandler[Code Submission]
+            Sandbox[Sandbox Runner]
+            CodeCheck[Code Check<br/>(Run Tests)]
+        end
+        
+        subgraph "Debug Practice"
+            DebugHandler[Debug Submission]
+            DebugCheck[Debug Check<br/>(Diff/Explain)]
+        end
+        
+        subgraph "System Practice"
+            SystemHandler[System Design Submission]
+            SystemCheck[System Check<br/>(Checklist)]
+        end
+        
+        subgraph "Ops Practice"
+            OpsHandler[Incident Submission]
+            OpsCheck[Ops Check<br/>(Checklist)]
+        end
+        
+        subgraph "Agent Practice"
+            AgentHandler[Agent Submission]
+            AgentCheck[Agent Check<br/>(Checklist)]
+        end
+    end
+    
+    subgraph "Evaluation Engine (Unified)"
+        TestManager[Test Case / Rule Manager]
+        ObjectiveFB[Objective Feedback<br/>(pass/fail, score, reasons)]
+    end
 
-%% =========================
-%% Client
-%% =========================
-subgraph CL["Client Layer"]
-  Home["Practice Home (5 icons)"]
-  CodeUI["Code Practice UI (Step 1→5)"]
-  DebugUI["Debug Practice UI (Step 1→5)"]
-  SystemUI["System Practice UI (Step 1→5)"]
-  OpsUI["Ops Practice UI (Step 1→5)"]
-  AgentUI["Agent Practice UI (Step 1→5)"]
-
-  Home --> CodeUI
-  Home --> DebugUI
-  Home --> SystemUI
-  Home --> OpsUI
-  Home --> AgentUI
-end
-
-%% =========================
-%% Gateway & Auth
-%% =========================
-subgraph GW["API Gateway & Auth"]
-  Gateway["API Gateway"]
-  RateLimit["Rate Limiter"]
-  Auth["Auth Service (JWT)"]
-end
-
-%% =========================
-%% Core MVP Backend
-%% =========================
-subgraph CORE["Core MVP Services"]
-  PracticeAPI["Practice API (thin dispatcher)\n- get task\n- submit\n- status/result"]
-  Registry["Practice Registry (type/step → evaluator config)"]
-  ProgressSvc["Progress Service (Step Gate)\n- unlock rule\n- attempt tracking"]
-  Reco["Rule-based Recommender\n(next step/task)"]
-end
-
-%% =========================
-%% Content (MVP: Git/DB)
-%% =========================
-subgraph CONTENT["Content Store (MVP)"]
-  ContentRepo["Problem Repo (Git) / Content DB\nScenario + Constraints + Testcases + Rubric Templates"]
-end
-
-%% =========================
-%% Async Execution Plane (MVP 핵심)
-%% =========================
-subgraph ASYNC["Async Job Plane"]
-  SubmitQ["Job Queue"]
-  EvalWorker["Evaluation Worker(s)"]
-  FeedbackQ["Feedback Queue (optional)"]
-  LLMWorker["LLM Feedback Worker(s)\n(hints/coach only)"]
-end
-
-%% =========================
-%% Evaluators / Sandbox
-%% =========================
-subgraph EXEC["Evaluators & Sandbox"]
-  Sandbox["Sandbox Runner (Docker)\n- no egress\n- cpu/mem limit\n- timeout"]
-  CodeEval["Code Evaluator\n(test + perf + lint)"]
-  DebugEval["Debug Evaluator\n(diff + failing tests)"]
-  SystemEval["System Evaluator\n(rubric + checklists)"]
-  OpsEval["Ops Evaluator\n(log/metric ruleset)"]
-  AgentEval["Agent Evaluator\n(prompt/rag checks)"]
-end
-
-%% =========================
-%% Data Stores
-%% =========================
-subgraph DATA["Data & Infra"]
-  ResultDB["Result DB (job 결과/점수/요약)"]
-  ProgressDB["Progress DB (user × practice × step)"]
-  ObjStore["Object Storage (artifacts/logs)"]
-  Cache["Cache (Redis)"]
-  Obs["Monitoring/Logging/Tracing"]
-end
-
-%% =========================
-%% Client → Gateway
-%% =========================
-CodeUI --> Gateway
-DebugUI --> Gateway
-SystemUI --> Gateway
-OpsUI --> Gateway
-AgentUI --> Gateway
-
-Gateway --> RateLimit --> Auth --> PracticeAPI
-
-%% =========================
-%% Thin dispatch + Step gate
-%% =========================
-PracticeAPI --> Registry
-PracticeAPI --> ProgressSvc
-ProgressSvc --> ProgressDB
-Reco --> PracticeAPI
-
-%% =========================
-%% Content fetch
-%% =========================
-ContentRepo --> PracticeAPI
-ContentRepo --> EvalWorker
-
-%% =========================
-%% Submit → Queue → Worker
-%% =========================
-PracticeAPI --> SubmitQ
-SubmitQ --> EvalWorker
-
-%% =========================
-%% Worker execution paths (practice별 독립 평가)
-%% =========================
-EvalWorker --> Sandbox
-Sandbox --> CodeEval --> ResultDB
-Sandbox --> DebugEval --> ResultDB
-EvalWorker --> SystemEval --> ResultDB
-EvalWorker --> OpsEval --> ResultDB
-EvalWorker --> AgentEval --> ResultDB
-
-%% artifacts/logs
-EvalWorker --> ObjStore
-Sandbox --> ObjStore
-
-%% progress update & next recommendation
-EvalWorker --> ProgressSvc
-ProgressSvc --> Reco
-
-%% =========================
-%% LLM: objective 결과 기반 "설명/힌트"만 (optional)
-%% =========================
-EvalWorker --> FeedbackQ
-FeedbackQ --> LLMWorker
-ResultDB --> LLMWorker
-LLMWorker --> ResultDB
-
-%% =========================
-%% UI polling for job status/result
-%% =========================
-PracticeAPI --> ResultDB
-PracticeAPI --> Cache
-
-%% observability
-PracticeAPI --> Obs
-EvalWorker --> Obs
-Sandbox --> Obs
-
-%% styling (optional)
-style Home fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-style PracticeAPI fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-style SubmitQ fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-style EvalWorker fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-style LLMWorker fill:#e0f2f1,stroke:#00695c,stroke-width:2px
-style Sandbox fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    subgraph AI_LLM_Layer["AI/LLM Layer (MVP: 1 Box Only)"]
+        LLMFeedback["Feedback Generator (LLM)\n- Hint/Coach\n- Best Practice Summary\n- Next Step Tip"]
+    end
+    
+    subgraph "User Progress"
+        ProgressTracker[Progress Tracker<br/>(current_step 1~5)]
+        UserHistory[(User Data & History)]
+        Recommender[Next Step (Rule-based)]
+    end
+    
+    subgraph "Infrastructure (MVP)"
+        Storage[Object Storage<br/>(optional)]
+        Cache[Cache<br/>(optional)]
+        Monitoring[Monitoring & Logging<br/>(minimal)]
+    end
+    
+    UI --> Gateway
+    CodeEditor --> Gateway
+    DiagramEditor --> Gateway
+    
+    Gateway --> RateLimit --> Auth --> Router
+    
+    %% 사용자 선택에 따른 분배(아이콘 클릭=practice 지정)
+    Router --> CodeHandler
+    Router --> DebugHandler
+    Router --> SystemHandler
+    Router --> OpsHandler
+    Router --> AgentHandler
+    
+    %% Practice별 최소 체크만 수행
+    CodeHandler --> Sandbox --> CodeCheck
+    DebugHandler --> DebugCheck
+    SystemHandler --> SystemCheck
+    OpsHandler --> OpsCheck
+    AgentHandler --> AgentCheck
+    
+    %% 컨텐츠 연결(최소)
+    ScenarioDB --> Router
+    ConstraintsDB --> Router
+    TestCaseDB --> TestManager
+    TemplateDB --> TestManager
+    
+    %% 공통 평가 엔진으로 수렴
+    CodeCheck --> TestManager
+    DebugCheck --> TestManager
+    SystemCheck --> TestManager
+    OpsCheck --> TestManager
+    AgentCheck --> TestManager
+    
+    TestManager --> ObjectiveFB
+    ObjectiveFB --> LLMFeedback
+    
+    %% 진행도/추천(룰 기반)
+    LLMFeedback --> ProgressTracker
+    ProgressTracker --> UserHistory
+    UserHistory --> Recommender
+    Recommender --> UI
+    
+    %% 인프라(옵션)
+    Monitoring -.-> Router
+    Storage -.-> Router
+    Cache -.-> Router
