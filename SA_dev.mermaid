@@ -1,104 +1,89 @@
 flowchart TB
 
 subgraph CL[Client Layer]
-  CodeUI["Code Practice UI\n- Task 보기\n- 제출(Submit)\n- Job 상태 확인\n- 결과/피드백 조회"]
+  UI["Unified Practice UI<br>Tracks: Code, Debug, Ops, System Design, System Algorithm"]
+  AdminUI["Admin/Author Console<br>- 콘텐츠 제작/검수/배포<br>- 리포트/제재/운영"]
 end
 
-subgraph IAM[API Gateway and Identity]
+subgraph EDGE[Edge and Identity]
   Gateway[API Gateway]
   Rate[Rate Limiter]
-  Auth["Auth (JWT, OAuth)"]
-  RBAC["RBAC/Scopes\n(user/admin/author)"]
-  Gateway --> Rate --> Auth --> RBAC
+  Auth["Auth + RBAC/Scopes"]
+  Gateway --> Rate --> Auth
 end
 
-subgraph API[Practice API - Code Practice]
-  CodeAPI["Code Practice API\n- get task\n- submit -> job_id\n- get status/result"]
-  Idem["Idempotency Key\n(중복 제출 방지)"]
-  CodeAPI --> Idem
+subgraph CORE[Core Platform Services]
+  Orchestrator["Practice Orchestrator<br>- submit to job_id<br>- route to track plugin<br>- lifecycle state machine"]
+  ContentSvc["Content Service<br>(versioned)"]
+  ArtifactSvc["Artifact Service<br>(object store + metadata)"]
+  ResultSvc[Result Service]
+  ProgressSvc["Progress/State Machine Service"]
+  RecSvc[Recommendation Service]
+  AntiCheat["Anti-cheat/Abuse Detection<br>(rate, anomaly, plagiarism hooks)"]
+  Telemetry["Observability Stack<br>(logs, metrics, traces, alerts)"]
 end
 
-subgraph CONTENT[Content Service - Versioned]
-  ContentAPI["Content API\n(scenario, constraints, templates)"]
-  ContentDB["(Content DB)\nversioned"]
-  TestVault["(TestCase Vault)\nencrypted + access control"]
-  ContentAPI --> ContentDB
-  ContentAPI --> TestVault
-end
-
-subgraph JOB[Async Job System]
+subgraph BUS[Async Backbone]
   Queue[Job Queue]
-  Scheduler[Job Scheduler/Dispatcher]
-  Queue --> Scheduler
+  Events["Event Bus<br>(SubmissionEvaluated, ProgressUpdated, AbuseFlagged)"]
 end
 
-subgraph WORKERS[Worker Pool]
-  Runner["Runner Worker\n(pull job)"]
-  ExecOrch[Execution Orchestrator]
-  Runner --> ExecOrch
+subgraph PLUGINS[Track Plugins]
+  CodePlugin["Code Practice Plugin<br>- compile and run tests<br>- objective scoring"]
+  DebugPlugin["Debug Practice Plugin<br>- failing system plus logs<br>- patch plus repro tests"]
+  OpsPlugin["Ops Practice Plugin<br>- incident scenario<br>- runbook simulation<br>- SLO and MTTR scoring"]
+  DesignPlugin["System Design Plugin<br>- diagram/spec submit<br>- rubric plus LLM critique"]
+  AlgoPlugin["System Algorithm Plugin<br>- implement components<br>- workload simulation plus perf scoring"]
 end
 
-subgraph EXEC[Secure Execution Boundary]
-  Sandbox["Sandbox Runtime\n- isolation\n- no egress network\n- CPU/Mem/Time limits\n- read-only FS + workspace"]
-  Tests["Test Runner\n(unit, integration)"]
-  Sandbox --> Tests
-end
-
-subgraph EVAL[Evaluation and Feedback]
-  Objective["Objective Scoring\n(pass/fail, score, reasons)"]
-  Feedback["LLM Coach Feedback\n(grounded on objective + logs)"]
-  Objective --> Feedback
+subgraph RUNTIMES[Execution and Simulation Runtimes]
+  SecureExec["Secure Execution Runtime<br>(sandboxed compute, no egress)"]
+  SimEnv["Simulation Runtime<br>(incident, workload, network)"]
+  EvalRig["Evaluation Rig<br>(perf tests, policy checks, linters)"]
 end
 
 subgraph DATA[Data Stores]
-  ArtifactStore["Object Storage\n(code, logs, artifacts)"]
+  ContentDB["(Content DB)<br>versions"]
+  SecretVault["(Test/Answer Vault)<br>encrypted"]
+  Obj["(Object Storage)"]
   ResultDB["(Result DB)"]
-  ProgressDB["(Progress DB)\nFSM + version field"]
+  ProgressDB["(Progress DB)"]
   Audit["(Audit Log)"]
 end
 
-subgraph REC[Recommendation]
-  Next["Next Step Service\n(rule-based + heuristics)"]
-end
+UI --> Gateway --> Orchestrator
+AdminUI --> Gateway --> ContentSvc
 
-subgraph OBS[Observability - Required]
-  Logs[Central Logging]
-  Metrics[Metrics]
-  Traces[Tracing]
-  Alerts[Alerting]
-end
+ContentSvc --> ContentDB
+ContentSvc --> SecretVault
 
-CodeUI --> Gateway --> CodeAPI
+Orchestrator --> Queue
+Orchestrator --> ProgressSvc --> ProgressDB
+Orchestrator --> AntiCheat
+Orchestrator --> Telemetry
 
-CodeAPI --> ContentAPI
+Queue --> CodePlugin
+Queue --> DebugPlugin
+Queue --> OpsPlugin
+Queue --> DesignPlugin
+Queue --> AlgoPlugin
 
-CodeAPI --> Queue
-CodeAPI --> ProgressDB
+CodePlugin --> SecureExec --> EvalRig
+DebugPlugin --> SecureExec --> EvalRig
+OpsPlugin --> SimEnv --> EvalRig
+DesignPlugin --> EvalRig
+AlgoPlugin --> SimEnv --> EvalRig
 
-Scheduler --> Runner
+SecureExec --> ArtifactSvc --> Obj
+SimEnv --> ArtifactSvc --> Obj
 
-Runner -->|"fetch content and testcases"| ContentAPI
-ExecOrch --> Sandbox
-Sandbox --> ArtifactStore
-Tests --> ArtifactStore
+EvalRig --> ResultSvc --> ResultDB
+ResultSvc --> Events
+Events --> ProgressSvc
+Events --> RecSvc
+AntiCheat --> Events
 
-Tests --> Objective --> ResultDB
-Feedback --> ResultDB
-
-Objective -->|"evaluated event"| ProgressDB
-ProgressDB --> Next --> CodeUI
-
-RBAC --> Audit
-CodeAPI --> Audit
-Runner --> Audit
-
-CodeAPI --> Logs
-Runner --> Logs
-Sandbox --> Logs
-
-CodeAPI --> Metrics
-Runner --> Metrics
-Sandbox --> Metrics
-
-CodeAPI --> Traces
-Runner --> Traces
+Auth --> Audit
+Orchestrator --> Audit
+ContentSvc --> Audit
+ResultSvc --> Audit
