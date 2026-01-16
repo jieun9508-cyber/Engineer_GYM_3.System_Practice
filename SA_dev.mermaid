@@ -1,66 +1,109 @@
 flowchart TB
+%% =========================
+%% MVP: Production-ish Code Practice
+%% =========================
 
 subgraph CL["Client Layer"]
-  CodeUI["Code Practice UI<br>Step 1-5 (linear)"]
+  CodeUI["Code Practice UI<br/>- Task 보기<br/>- 제출(Submit)<br/>- Job 상태 확인<br/>- 결과/피드백 조회"]
 end
 
-subgraph GW["API Gateway & Auth"]
+subgraph IAM["API Gateway & Identity"]
   Gateway["API Gateway"]
   Rate["Rate Limiter"]
-  Auth["Auth (JWT)"]
-  Gateway --> Rate --> Auth
+  Auth["Auth (JWT/OAuth)"]
+  RBAC["RBAC/Scopes<br/>(user/admin/author)"]
+  Gateway --> Rate --> Auth --> RBAC
 end
 
-subgraph CODE["Code Practice Service"]
-  CodeSvc["Code Service<br>- get task<br>- submit<br>- result"]
-  StepGate["Step Gate<br>(check current_step)"]
-  CodeSvc --> StepGate
+subgraph API["Practice API (Code Practice)"]
+  CodeAPI["Code Practice API<br/>- get task<br/>- submit -> job_id<br/>- get status/result"]
+  Idem["Idempotency Key<br/>(중복 제출 방지)"]
+  CodeAPI --> Idem
 end
 
-subgraph CONTENT["Content"]
-  ScenarioDB[(Scenario DB)]
-  ConstraintsDB[(Constraints DB)]
-  TestCaseDB[(Test Cases)]
-  TemplateDB[(Templates)]
+subgraph CONTENT["Content Service (Versioned)"]
+  ContentAPI["Content API<br/>(scenario/constraints/templates)"]
+  ContentDB[(Content DB<br/>versioned)]
+  TestVault[(TestCase Vault<br/>encrypted + access control)]
+  ContentAPI --> ContentDB
+  ContentAPI --> TestVault
 end
 
-subgraph EXEC["Execution"]
-  Sandbox["Sandbox Runner"]
-  TestRun["Run Tests"]
+subgraph JOB["Async Job System"]
+  Queue["Job Queue"]
+  Scheduler["Job Scheduler/Dispatcher"]
+  Queue --> Scheduler
+end
+
+subgraph WORKERS["Worker Pool"]
+  Runner["Runner Worker<br/>(pull job)"]
+  Runner --> ExecOrch["Execution Orchestrator"]
+end
+
+subgraph EXEC["Secure Execution Boundary"]
+  Sandbox["Sandbox Runtime<br/>- container/VM isolate<br/>- no egress network<br/>- CPU/Mem/Time limits<br/>- read-only FS + workspace"]
+  Tests["Test Runner<br/>(unit/integration)"]
+  Sandbox --> Tests
 end
 
 subgraph EVAL["Evaluation & Feedback"]
-  ObjectiveFB["Objective Result<br>pass/fail, score, reasons"]
-  LLM["LLM Feedback<br>(hint/coach only)"]
-  ObjectiveFB --> LLM
+  Objective["Objective Scoring<br/>pass/fail, score, reasons"]
+  Feedback["LLM Coach Feedback<br/>grounded on objective+logs<br/>(hint/coach only)"]
+  Objective --> Feedback
 end
 
-subgraph DATA["Result & Progress"]
+subgraph DATA["Data Stores"]
+  ArtifactStore["Object Storage<br/>(code/logs/artifacts)"]
   ResultDB[(Result DB)]
-  ProgressDB[(Progress DB)]
-  UserHistory[(User History)]
-  Next["Next Step<br>(rule-based)"]
+  ProgressDB[(Progress DB<br/>FSM + version field)]
+  Audit[(Audit Log)]
 end
 
-subgraph INFRA["Infra (optional)"]
-  Obj["Object Storage<br>(code/logs/artifacts)"]
-  Obs["Monitoring/Logging"]
+subgraph REC["Recommendation"]
+  Next["Next Step Service<br/>(rule-based + heuristics)"]
 end
 
-CodeUI --> Gateway --> CodeSvc
+subgraph OBS["Observability (Required)"]
+  Logs["Central Logging"]
+  Metrics["Metrics"]
+  Traces["Tracing"]
+  Alerts["Alerting"]
+end
 
-ScenarioDB --> CodeSvc
-ConstraintsDB --> CodeSvc
+%% ======== Flows ========
+CodeUI --> Gateway --> CodeAPI
 
-CodeSvc --> Sandbox --> TestRun
-TestCaseDB --> TestRun
-TemplateDB --> TestRun
+%% Task fetch (versioned)
+CodeAPI --> ContentAPI
 
-TestRun --> ObjectiveFB --> ResultDB
-LLM --> ResultDB
+%% Submit -> job
+CodeAPI --> Queue
+CodeAPI --> ProgressDB
 
-CodeSvc --> ProgressDB --> UserHistory --> Next --> CodeUI
+%% Worker execution
+Scheduler --> Runner
+Runner -->|fetch content/testcases (authorized)| ContentAPI
+ExecOrch --> Sandbox
+Sandbox --> ArtifactStore
+Tests --> ArtifactStore
 
-Sandbox --> Obj
-Obs -.-> CodeSvc
-Obs -.-> Sandbox
+%% Evaluate + store
+Tests --> Objective --> ResultDB
+Feedback --> ResultDB
+Objective -->|emit evaluated event| ProgressDB
+ProgressDB --> Next --> CodeUI
+
+%% Audit + Observability
+RBAC --> Audit
+CodeAPI --> Audit
+Runner --> Audit
+
+CodeAPI --> Logs
+Runner --> Logs
+Sandbox --> Logs
+CodeAPI --> Metrics
+Runner --> Metrics
+Sandbox --> Metrics
+CodeAPI --> Traces
+Runner --> Traces
+Alerts --> CodeUI
