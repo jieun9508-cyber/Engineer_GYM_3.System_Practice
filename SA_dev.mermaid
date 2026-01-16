@@ -1,99 +1,93 @@
 flowchart TB
-%% =========================
-%% MVP: Production-ish Code Practice
-%% =========================
 
-subgraph CL["Client Layer"]
-  CodeUI["Code Practice UI<br/>- Task 보기<br/>- 제출(Submit)<br/>- Job 상태 확인<br/>- 결과/피드백 조회"]
+subgraph CL[Client Layer]
+  CodeUI["Code Practice UI\n- Task 보기\n- 제출(Submit)\n- Job 상태 확인\n- 결과/피드백 조회"]
 end
 
-subgraph IAM["API Gateway & Identity"]
-  Gateway["API Gateway"]
-  Rate["Rate Limiter"]
-  Auth["Auth (JWT/OAuth)"]
-  RBAC["RBAC/Scopes<br/>(user/admin/author)"]
+subgraph IAM[API Gateway and Identity]
+  Gateway[API Gateway]
+  Rate[Rate Limiter]
+  Auth["Auth (JWT, OAuth)"]
+  RBAC["RBAC/Scopes\n(user/admin/author)"]
   Gateway --> Rate --> Auth --> RBAC
 end
 
-subgraph API["Practice API (Code Practice)"]
-  CodeAPI["Code Practice API<br/>- get task<br/>- submit -> job_id<br/>- get status/result"]
-  Idem["Idempotency Key<br/>(중복 제출 방지)"]
+subgraph API[Practice API - Code Practice]
+  CodeAPI["Code Practice API\n- get task\n- submit -> job_id\n- get status/result"]
+  Idem["Idempotency Key\n(중복 제출 방지)"]
   CodeAPI --> Idem
 end
 
-subgraph CONTENT["Content Service (Versioned)"]
-  ContentAPI["Content API<br/>(scenario/constraints/templates)"]
-  ContentDB[(Content DB<br/>versioned)]
-  TestVault[(TestCase Vault<br/>encrypted + access control)]
+subgraph CONTENT[Content Service - Versioned]
+  ContentAPI["Content API\n(scenario, constraints, templates)"]
+  ContentDB["(Content DB)\nversioned"]
+  TestVault["(TestCase Vault)\nencrypted + access control"]
   ContentAPI --> ContentDB
   ContentAPI --> TestVault
 end
 
-subgraph JOB["Async Job System"]
-  Queue["Job Queue"]
-  Scheduler["Job Scheduler/Dispatcher"]
+subgraph JOB[Async Job System]
+  Queue[Job Queue]
+  Scheduler[Job Scheduler/Dispatcher]
   Queue --> Scheduler
 end
 
-subgraph WORKERS["Worker Pool"]
-  Runner["Runner Worker<br/>(pull job)"]
-  Runner --> ExecOrch["Execution Orchestrator"]
+subgraph WORKERS[Worker Pool]
+  Runner["Runner Worker\n(pull job)"]
+  ExecOrch[Execution Orchestrator]
+  Runner --> ExecOrch
 end
 
-subgraph EXEC["Secure Execution Boundary"]
-  Sandbox["Sandbox Runtime<br/>- container/VM isolate<br/>- no egress network<br/>- CPU/Mem/Time limits<br/>- read-only FS + workspace"]
-  Tests["Test Runner<br/>(unit/integration)"]
+subgraph EXEC[Secure Execution Boundary]
+  Sandbox["Sandbox Runtime\n- isolation\n- no egress network\n- CPU/Mem/Time limits\n- read-only FS + workspace"]
+  Tests["Test Runner\n(unit, integration)"]
   Sandbox --> Tests
 end
 
-subgraph EVAL["Evaluation & Feedback"]
-  Objective["Objective Scoring<br/>pass/fail, score, reasons"]
-  Feedback["LLM Coach Feedback<br/>grounded on objective+logs<br/>(hint/coach only)"]
+subgraph EVAL[Evaluation and Feedback]
+  Objective["Objective Scoring\n(pass/fail, score, reasons)"]
+  Feedback["LLM Coach Feedback\n(grounded on objective + logs)"]
   Objective --> Feedback
 end
 
-subgraph DATA["Data Stores"]
-  ArtifactStore["Object Storage<br/>(code/logs/artifacts)"]
-  ResultDB[(Result DB)]
-  ProgressDB[(Progress DB<br/>FSM + version field)]
-  Audit[(Audit Log)]
+subgraph DATA[Data Stores]
+  ArtifactStore["Object Storage\n(code, logs, artifacts)"]
+  ResultDB["(Result DB)"]
+  ProgressDB["(Progress DB)\nFSM + version field"]
+  Audit["(Audit Log)"]
 end
 
-subgraph REC["Recommendation"]
-  Next["Next Step Service<br/>(rule-based + heuristics)"]
+subgraph REC[Recommendation]
+  Next["Next Step Service\n(rule-based + heuristics)"]
 end
 
-subgraph OBS["Observability (Required)"]
-  Logs["Central Logging"]
-  Metrics["Metrics"]
-  Traces["Tracing"]
-  Alerts["Alerting"]
+subgraph OBS[Observability - Required]
+  Logs[Central Logging]
+  Metrics[Metrics]
+  Traces[Tracing]
+  Alerts[Alerting]
 end
 
-%% ======== Flows ========
 CodeUI --> Gateway --> CodeAPI
 
-%% Task fetch (versioned)
 CodeAPI --> ContentAPI
 
-%% Submit -> job
 CodeAPI --> Queue
 CodeAPI --> ProgressDB
 
-%% Worker execution
 Scheduler --> Runner
-Runner -->|fetch content/testcases (authorized)| ContentAPI
+
+Runner -->|"fetch content and testcases"| ContentAPI
 ExecOrch --> Sandbox
 Sandbox --> ArtifactStore
 Tests --> ArtifactStore
 
-%% Evaluate + store
 Tests --> Objective --> ResultDB
 Feedback --> ResultDB
-Objective -->|emit evaluated event| ProgressDB
+
+Objective -->|"evaluated event"| ProgressDB
 ProgressDB --> Next --> CodeUI
 
-%% Audit + Observability
 RBAC --> Audit
 CodeAPI --> Audit
 Runner --> Audit
@@ -101,9 +95,10 @@ Runner --> Audit
 CodeAPI --> Logs
 Runner --> Logs
 Sandbox --> Logs
+
 CodeAPI --> Metrics
 Runner --> Metrics
 Sandbox --> Metrics
+
 CodeAPI --> Traces
 Runner --> Traces
-Alerts --> CodeUI
