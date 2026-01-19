@@ -1,0 +1,89 @@
+flowchart TB
+
+subgraph CL[Client Layer]
+  UI["Unified Practice UI<br>Tracks: Code, Debug, Ops, System Design, System Algorithm"]
+  AdminUI["Admin/Author Console<br>- 콘텐츠 제작/검수/배포<br>- 리포트/제재/운영"]
+end
+
+subgraph EDGE[Edge and Identity]
+  Gateway[API Gateway]
+  Rate[Rate Limiter]
+  Auth["Auth + RBAC/Scopes"]
+  Gateway --> Rate --> Auth
+end
+
+subgraph CORE[Core Platform Services]
+  Orchestrator["Practice Orchestrator<br>- submit to job_id<br>- route to track plugin<br>- lifecycle state machine"]
+  ContentSvc["Content Service<br>(versioned)"]
+  ArtifactSvc["Artifact Service<br>(object store + metadata)"]
+  ResultSvc[Result Service]
+  ProgressSvc["Progress/State Machine Service"]
+  RecSvc[Recommendation Service]
+  AntiCheat["Anti-cheat/Abuse Detection<br>(rate, anomaly, plagiarism hooks)"]
+  Telemetry["Observability Stack<br>(logs, metrics, traces, alerts)"]
+end
+
+subgraph BUS[Async Backbone]
+  Queue[Job Queue]
+  Events["Event Bus<br>(SubmissionEvaluated, ProgressUpdated, AbuseFlagged)"]
+end
+
+subgraph PLUGINS[Track Plugins]
+  CodePlugin["Code Practice Plugin<br>- compile and run tests<br>- objective scoring"]
+  DebugPlugin["Debug Practice Plugin<br>- failing system plus logs<br>- patch plus repro tests"]
+  OpsPlugin["Ops Practice Plugin<br>- incident scenario<br>- runbook simulation<br>- SLO and MTTR scoring"]
+  DesignPlugin["System Design Plugin<br>- diagram/spec submit<br>- rubric plus LLM critique"]
+  AlgoPlugin["System Algorithm Plugin<br>- implement components<br>- workload simulation plus perf scoring"]
+end
+
+subgraph RUNTIMES[Execution and Simulation Runtimes]
+  SecureExec["Secure Execution Runtime<br>(sandboxed compute, no egress)"]
+  SimEnv["Simulation Runtime<br>(incident, workload, network)"]
+  EvalRig["Evaluation Rig<br>(perf tests, policy checks, linters)"]
+end
+
+subgraph DATA[Data Stores]
+  ContentDB["(Content DB)<br>versions"]
+  SecretVault["(Test/Answer Vault)<br>encrypted"]
+  Obj["(Object Storage)"]
+  ResultDB["(Result DB)"]
+  ProgressDB["(Progress DB)"]
+  Audit["(Audit Log)"]
+end
+
+UI --> Gateway --> Orchestrator
+AdminUI --> Gateway --> ContentSvc
+
+ContentSvc --> ContentDB
+ContentSvc --> SecretVault
+
+Orchestrator --> Queue
+Orchestrator --> ProgressSvc --> ProgressDB
+Orchestrator --> AntiCheat
+Orchestrator --> Telemetry
+
+Queue --> CodePlugin
+Queue --> DebugPlugin
+Queue --> OpsPlugin
+Queue --> DesignPlugin
+Queue --> AlgoPlugin
+
+CodePlugin --> SecureExec --> EvalRig
+DebugPlugin --> SecureExec --> EvalRig
+OpsPlugin --> SimEnv --> EvalRig
+DesignPlugin --> EvalRig
+AlgoPlugin --> SimEnv --> EvalRig
+
+SecureExec --> ArtifactSvc --> Obj
+SimEnv --> ArtifactSvc --> Obj
+
+EvalRig --> ResultSvc --> ResultDB
+ResultSvc --> Events
+Events --> ProgressSvc
+Events --> RecSvc
+AntiCheat --> Events
+
+Auth --> Audit
+Orchestrator --> Audit
+ContentSvc --> Audit
+ResultSvc --> Audit

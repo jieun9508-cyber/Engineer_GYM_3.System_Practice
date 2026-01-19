@@ -1,0 +1,43 @@
+flowchart TB
+
+subgraph CL["Client Layer"]
+  Home["Practice Home\n(5 icons)"]
+  PUI["Practice UI\n(Code/Debug/System/Ops/Agent)\nStep 1-5 (linear)"]
+  Home --> PUI
+end
+
+subgraph GW["API Gateway & Auth"]
+  Gateway["API Gateway"]
+  Auth["Auth Service (JWT)"]
+  Gateway --> Auth
+end
+
+subgraph CORE["Practice Services (x5)"]
+  PracticeSvc["Practice Services\n- Code\n- Debug\n- System\n- Ops\n- Agent\n(each: task, submit, result)"]
+end
+
+subgraph EVAL["Evaluation & Feedback"]
+  EvalEngine["Evaluation Engine (Unified)\nTest/Rule Manager -> Objective Result"]
+  LLM["LLM Feedback Generator\n(hint/coach only)"]
+  EvalEngine --> LLM
+end
+
+subgraph DATA["Content & Progress"]
+  Content["Content Store\nScenario / Constraints / Testcases / Templates"]
+  Progress["Progress Store\ncurrent_step 1-5, history"]
+end
+
+subgraph INFRA["Infra (optional)"]
+  Obs["Monitoring/Logging"]
+  Obj["Object Storage"]
+end
+
+%% main runtime flow
+PUI --> Gateway --> PracticeSvc --> EvalEngine --> Progress --> Home
+
+%% data dependencies (single lines only)
+Content --> PracticeSvc
+
+%% optional infra (single dotted lines only)
+Obs -.-> PracticeSvc
+Obj -.-> PracticeSvc
