@@ -1,0 +1,49 @@
+flowchart TD
+  %% =========================
+  %% Engineer_GYM System Practice - End-to-End Flow
+  %% =========================
+
+  subgraph USER["사용자(학생)"]
+    U1[시나리오 목록 보기]
+    U2[시나리오 상세 보기\n요구사항/제약/트래픽/제출 포맷]
+    U3[아키텍처 제출\nMermaid + 설명 + Tradeoffs + payload]
+    U4[결과 조회\n점수/OK·NG/코멘트/리스크/질문]
+    U1 --> U2 --> U3 --> U4
+  end
+
+  subgraph DB["MySQL (Engineer_GYM)"]
+    T1[(system_scenarios\n문제/루브릭/키워드 힌트)]
+    T2[(system_submissions\n제출물 저장)]
+    T3[(system_results\n채점/피드백 저장)]
+  end
+
+  subgraph AUTO1["Stage 1~2: SQL 자동채점 (db_03)"]
+    S1[키워드 기반 채점\n(ACL/Audit/Obs/Failure/…)]
+    S2[Tradeoff 개수 기반 Cap 적용\n(3개↑=100, 2개=85, 1개=70, 0개=60)]
+    S3[Risk Flags 생성\n(INSUFFICIENT_TRADEOFFS 등)]
+    S1 --> S2 --> S3
+  end
+
+  subgraph AUTO2["Stage 3: Python 그래프 분석 (review_SPOF_bottleneck.py)"]
+    P1[Mermaid 파싱 → Graph 생성]
+    P2[SPOF 탐지\n(단절점/단일경로 의존)]
+    P3[병목 후보 탐지\n(중앙성 + fan-in/out)]
+    P4[대안 아키텍처/후속 질문 생성]
+    P1 --> P2 --> P3 --> P4
+  end
+
+  %% --- 데이터 흐름(쿼리/저장) ---
+  U1 -->|SELECT| T1
+  U2 -->|SELECT| T1
+  U3 -->|INSERT| T2
+
+  T2 -->|READ 최신 submission| S1
+  S3 -->|INSERT/UPDATE\n(점수/플래그/코멘트)| T3
+
+  T2 -->|READ mermaid/submission| P1
+  T3 -->|READ Stage1~2 결과| P1
+  P4 -->|UPDATE\n(추가 감점/대안/질문)| T3
+
+  U4 -->|SELECT JOIN\n(scenarios+submissions+results)| T1
+  U4 -->|JOIN| T2
+  U4 -->|JOIN| T3
